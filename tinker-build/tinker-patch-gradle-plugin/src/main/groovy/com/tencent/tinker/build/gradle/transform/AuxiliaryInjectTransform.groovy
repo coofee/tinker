@@ -71,13 +71,23 @@ public class AuxiliaryInjectTransform extends Transform {
 
     @Override
     Set<QualifiedContent.Scope> getScopes() {
-        return ImmutableSet.of(
-                QualifiedContent.Scope.PROJECT,
-                QualifiedContent.Scope.SUB_PROJECTS,
-                QualifiedContent.Scope.PROJECT_LOCAL_DEPS,
-                QualifiedContent.Scope.SUB_PROJECTS_LOCAL_DEPS,
-                QualifiedContent.Scope.EXTERNAL_LIBRARIES
-        )
+        def name = QualifiedContent.Scope.PROJECT_LOCAL_DEPS.name()
+        def deprecated = QualifiedContent.Scope.PROJECT_LOCAL_DEPS.getClass()
+                .getField(name).getAnnotation(Deprecated.class)
+
+        if (deprecated == null) {
+            println "cannot find QualifiedContent.Scope.PROJECT_LOCAL_DEPS Deprecated.class "
+            return ImmutableSet.<QualifiedContent.Scope> of(QualifiedContent.Scope.PROJECT
+                    , QualifiedContent.Scope.PROJECT_LOCAL_DEPS
+                    , QualifiedContent.Scope.EXTERNAL_LIBRARIES
+                    , QualifiedContent.Scope.SUB_PROJECTS
+                    , QualifiedContent.Scope.SUB_PROJECTS_LOCAL_DEPS)
+        } else {
+            println "find QualifiedContent.Scope.PROJECT_LOCAL_DEPS Deprecated.class "
+            return ImmutableSet.<QualifiedContent.Scope> of(QualifiedContent.Scope.PROJECT
+                    , QualifiedContent.Scope.EXTERNAL_LIBRARIES
+                    , QualifiedContent.Scope.SUB_PROJECTS)
+        }
     }
 
     @Override
@@ -117,7 +127,13 @@ public class AuxiliaryInjectTransform extends Transform {
         this.applicationVariants.any { variant ->
             if (variant.name.equals(variantName)) {
                 def variantOutput = variant.outputs.first()
-                this.manifestFile = variantOutput.processManifest.manifestOutputFile
+
+                if (variantOutput.processManifest.properties['manifestOutputFile'] != null) {
+                    this.manifestFile = variantOutput.processManifest.manifestOutputFile;
+                } else if (variantOutput.processResources.properties['manifestFile'] != null){
+                    this.manifestFile = variantOutput.processResources.manifestFile;
+                }
+//                this.manifestFile = variantOutput.processManifest.manifestOutputFile
                 return true  // break out.
             }
         }
